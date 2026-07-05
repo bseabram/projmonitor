@@ -1,0 +1,29 @@
+{% extends "core/base.html" %}
+{% block title %}Atualizar Tarefa{% endblock %}
+{% block content %}
+<div class="card p-4" style="max-width:500px">
+  <h4>Atualizar Tarefa</h4>
+  <p><strong>{{ tarefa.titulo }}</strong></p>
+  <p class="text-muted">Projeto: {{ tarefa.projeto.nome }} · Prazo: {{ tarefa.prazo|default:"—" }}</p>
+  {% if tarefa.dependencias_como_sucessora.exists %}
+  <div class="alert alert-info small">
+    Esta tarefa depende de:
+    {% for dep in tarefa.dependencias_como_sucessora.all %}
+      <strong>{{ dep.predecessora.titulo }}</strong> ({{ dep.predecessora.get_estado_display }})
+    {% endfor %}
+  </div>
+  {% endif %}
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="mb-3">
+      <label class="form-label">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">Guardar</button>
+    <a href="{% url 'minhas_tarefas' %}" class="btn btn-link">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

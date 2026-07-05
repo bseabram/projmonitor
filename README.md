@@ -1,4 +1,4 @@
-# projmonitor# ProjMonitor
+# ProjMonitor
 
 Sistema de informação web para monitorização de desempenho em projetos de software.
 
@@ -16,7 +16,7 @@ Projeto Final de Licenciatura em Engenharia Informática — Universidade Aberta
 
 ## Tecnologias
 
-Python 3.9 · Django 4.2 · SQLite 3 · Bootstrap 5 · HTML/CSS/JavaScript
+Python 3 · Django 4.2 · SQLite 3 · Bootstrap 5 · HTML/CSS/JavaScript
 
 ## Como executar
 
@@ -26,7 +26,7 @@ pip install -r requirements.txt
 
 # 2. Criar a base de dados e carregar os dados de demonstração
 python manage.py migrate
-python manage.py loaddata demo_data.json
+python manage.py seed_demo
 
 # 3. Arrancar o servidor
 python manage.py runserver
@@ -40,6 +40,11 @@ Abrir <http://127.0.0.1:8000> no browser.
 |---|---|---|
 | Gestor de Projeto | `gestor` | `gestor123` |
 | Colaborador | `joao` | `joao123` |
+| Colaborador | `maria` | `maria123` |
+| Colaborador | `rui` | `rui123` |
+| Administrador | `admin` | `admin123` |
+
+*(Credenciais de demonstração para execução local — não usar em produção.)*
 
 ## Testes
 
@@ -52,11 +57,19 @@ Inclui ainda testes de desempenho: cálculo de métricas e exportação CSV < 10
 
 ## Estrutura
 
-- `models.py` — entidades e regras de negócio (métricas, risco, WBS, precedências)
-- `views.py` — controlo de acesso e orquestração
-- `templates/` — interface (Bootstrap 5)
-- `tests/` — classes de teste unitário e de integração
-- `demo_data.json` — dados de demonstração (8 projetos)
+```
+sistema_monitoramento/
+├── manage.py
+├── requirements.txt
+├── monitoramento/            # configuração Django (settings, urls, wsgi)
+└── core/                     # aplicação principal
+    ├── models.py             # Utilizador, Projeto, Tarefa, DependenciaTarefa + regras de negócio
+    ├── views.py              # controlo de acesso e orquestração
+    ├── forms.py              # formulários e validações
+    ├── templates/            # interface (Bootstrap 5)
+    ├── tests.py              # testes unitários e de integração
+    └── management/commands/  # seed_demo (dados de demonstração)
+```
 
 ## Documentação
 

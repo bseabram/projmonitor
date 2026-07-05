@@ -1,0 +1,20 @@
+{% extends "core/base.html" %}
+{% block title %}Adicionar Colaborador{% endblock %}
+{% block content %}
+<div class="card p-4" style="max-width:500px">
+  <h4>Adicionar Colaborador</h4>
+  <p class="text-muted">Projeto: <strong>{{ projeto.nome }}</strong></p>
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="mb-3">
+      <label class="form-label">{{ field.label }}</label>
+      {{ field }}
+      {% if field.errors %}<div class="text-danger small">{{ field.errors }}</div>{% endif %}
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary">Adicionar</button>
+    <a href="{% url 'detalhe_projeto' projeto.id %}" class="btn btn-link">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

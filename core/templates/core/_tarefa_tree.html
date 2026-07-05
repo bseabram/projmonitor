@@ -1,0 +1,39 @@
+{% if tarefas %}
+<ul class="task-tree">
+  {% for t in tarefas %}
+  <li class="mb-1">
+    <div class="d-flex align-items-center gap-2 py-1 border-bottom">
+      <span class="badge {% if t.estado == 'CONCLUIDA' %}bg-success{% elif t.estado == 'EM_EXECUCAO' %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}">
+        {{ t.get_estado_display }}
+      </span>
+      <span {% if t.esta_atrasada %}class="text-danger"{% endif %}>
+        <a href="{% url 'detalhe_tarefa' t.id %}" class="text-decoration-none {% if t.esta_atrasada %}text-danger{% else %}text-dark{% endif %}">{{ t.titulo }}</a>
+        {% if t.responsavel %}<small class="text-muted">→ {{ t.responsavel.get_full_name|default:t.responsavel.username }}</small>{% endif %}
+        {% if t.prazo %}<small class="text-muted">(prazo: {{ t.prazo }})</small>{% endif %}
+        {% if t.notas %}<span class="badge bg-light text-secondary border ms-1" title="{{ t.notas }}">nota</span>{% endif %}
+      </span>
+      {% if is_gestor %}
+      <div class="ms-auto btn-group btn-group-sm">
+        {% if t.is_tarefa_final %}<a href="{% url 'editar_tarefa' t.id %}" class="btn btn-outline-secondary btn-sm">✏️</a>{% endif %}
+        <a href="{% url 'decompor_tarefa' t.id %}" class="btn btn-outline-primary btn-sm">＋</a>
+        <a href="{% url 'adicionar_dependencia' t.id %}" class="btn btn-outline-secondary btn-sm">🔗</a>
+        <a href="{% url 'apagar_tarefa' t.id %}" class="btn btn-outline-danger btn-sm">🗑</a>
+      </div>
+      {% endif %}
+    </div>
+    {% if t.subtarefas.exists %}
+      {% include "core/_tarefa_tree.html" with tarefas=t.subtarefas.all is_gestor=is_gestor %}
+    {% endif %}
+    {% if t.dependencias_como_sucessora.exists %}
+    <div class="ms-3 text-muted small">
+      Depende de:
+      {% for dep in t.dependencias_como_sucessora.all %}
+        <span class="badge bg-light text-dark border">{{ dep.predecessora.titulo }}</span>
+        {% if is_gestor %}<a href="{% url 'remover_dependencia' dep.id %}" class="text-danger small">✕</a>{% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ul>
+{% endif %}

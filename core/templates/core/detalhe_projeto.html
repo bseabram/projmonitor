@@ -1,0 +1,105 @@
+{% extends "core/base.html" %}
+{% block title %}{{ projeto.nome }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <h2>{{ projeto.nome }}</h2>
+    <span class="badge bg-secondary">{{ projeto.get_estado_display }}</span>
+    <span class="badge bg-{{ risco_css }} ms-1">{{ risco }}</span>
+    {% if projeto.descricao %}<p class="text-muted mt-1 mb-0">{{ projeto.descricao }}</p>{% endif %}
+  </div>
+  {% if is_gestor %}
+  <div class="btn-group">
+    <a href="{% url 'editar_projeto' projeto.id %}" class="btn btn-outline-secondary btn-sm">Editar</a>
+    <a href="{% url 'exportar_csv' projeto.id %}" class="btn btn-outline-success btn-sm">Exportar CSV</a>
+    <a href="{% url 'gantt_projeto' projeto.id %}" class="btn btn-outline-primary btn-sm">📊 Gantt</a>
+    <a href="{% url 'apagar_projeto' projeto.id %}" class="btn btn-outline-danger btn-sm">Apagar</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Métricas -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-3 fw-bold text-primary">{{ conclusao }}%</div>
+      <div class="text-muted small">Conclusão</div>
+      <div class="progress mt-2" style="height:20px; border-radius:6px;">
+        <div class="progress-bar" role="progressbar"
+          style="width:{{ conclusao|floatformat:0 }}%; font-size:12px; font-weight:600;"
+          aria-valuenow="{{ conclusao|floatformat:0 }}" aria-valuemin="0" aria-valuemax="100">
+          {% if conclusao >= 15 %}{{ conclusao|floatformat:1 }}%{% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-3 fw-bold {% if desvio and desvio > 0 %}text-danger{% else %}text-success{% endif %}">
+        {% if desvio is not None %}{{ desvio }}%{% else %}N/A{% endif %}
+      </div>
+      <div class="text-muted small">Desvio de esforço</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-3 fw-bold text-danger">{{ atrasadas|length }}</div>
+      <div class="text-muted small">Tarefas em atraso</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="card text-center p-3">
+      <div class="fs-3 fw-bold">{{ projeto.data_fim_prevista|default:"—" }}</div>
+      <div class="text-muted small">Prazo</div>
+    </div>
+  </div>
+</div>
+
+<!-- Participantes -->
+<div class="card mb-4 p-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0">Colaboradores</h5>
+    {% if is_gestor %}
+    <a href="{% url 'adicionar_participante' projeto.id %}" class="btn btn-sm btn-outline-primary">+ Adicionar</a>
+    {% endif %}
+  </div>
+  {% for p in projeto.participantes.all %}
+  <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+    <span>{{ p.get_full_name|default:p.username }} <small class="text-muted">({{ p.get_papel_display }})</small></span>
+    {% if is_gestor and p != request.user %}
+    <a href="{% url 'remover_participante' projeto.id p.id %}" class="btn btn-sm btn-link text-danger">Remover</a>
+    {% endif %}
+  </div>
+  {% empty %}
+  <p class="text-muted mb-0">Sem colaboradores.</p>
+  {% endfor %}
+</div>
+
+<!-- Estrutura de tarefas -->
+<div class="card p-3">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="mb-0">Estrutura de Tarefas</h5>
+    {% if is_gestor %}
+    <a href="{% url 'criar_tarefa' projeto.id %}" class="btn btn-sm btn-outline-primary">+ Nova Tarefa</a>
+    {% endif %}
+  </div>
+  {% include "core/_tarefa_tree.html" with tarefas=tarefas_raiz is_gestor=is_gestor %}
+</div>
+
+<!-- Tarefas em atraso -->
+{% if atrasadas %}
+<div class="card p-3 mt-4 border-danger">
+  <h5 class="text-danger">⚠️ Tarefas em atraso</h5>
+  <ul class="list-group list-group-flush">
+    {% for t in atrasadas %}
+    <li class="list-group-item d-flex justify-content-between">
+      {{ t.titulo }}
+      <span class="text-danger">{{ t.prazo }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+</div>
+{% endif %}
+
+{% endblock %}

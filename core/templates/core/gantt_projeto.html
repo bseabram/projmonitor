@@ -1,0 +1,265 @@
+{% extends "core/base.html" %}
+{% block title %}Gantt – {{ projeto.nome }}{% endblock %}
+{% block container_class %}container-fluid{% endblock %}
+
+{% block content %}
+<style>
+  #gt th, #gt td { border: 1px solid #dee2e6; padding: 4px 6px; }
+  #gt { border-collapse: separate; border-spacing: 0; }
+
+  /* sticky left columns */
+  #gt th.sk, #gt td.sk {
+    position: sticky;
+    background: #fff;
+    z-index: 3;
+  }
+  #gt thead th.sk { background: #212529; z-index: 5; }
+
+  .c0 { left:   0px; min-width: 42px;  width: 42px;  }
+  .c1 { left:  42px; min-width: 230px; width: 230px; }
+  .c2 { left: 272px; min-width: 100px; width: 100px; }
+  .c3 { left: 372px; min-width:  95px; width:  95px; }
+  .c4 { left: 467px; min-width:  62px; width:  62px; }
+  .c5 { left: 529px; min-width:  82px; width:  82px; }
+  .c6 { left: 611px; min-width:  82px; width:  82px; }
+  .c7 { left: 693px; min-width:  62px; width:  62px; box-shadow: 3px 0 6px -2px rgba(0,0,0,.25); }
+
+  #gt td.c1 { white-space: normal; word-break: break-word; line-height: 1.3; }
+
+  #gantt-scroll { overflow-x: auto; position: relative; }
+  #dep-svg { position: absolute; pointer-events: none; z-index: 2; overflow: visible; }
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h2 class="mb-0">📊 Diagrama de Gantt</h2>
+    <small class="text-muted">{{ projeto.nome }}</small>
+  </div>
+  <div class="d-flex gap-2">
+    <div class="btn-group btn-group-sm">
+      <button class="btn btn-outline-secondary" onclick="changeZoom(-4)">−</button>
+      <button class="btn btn-outline-secondary" onclick="changeZoom(0)">Reset</button>
+      <button class="btn btn-outline-secondary" onclick="changeZoom(+4)">+</button>
+    </div>
+    <a href="{% url 'detalhe_projeto' projeto.id %}" class="btn btn-outline-secondary btn-sm">← Voltar</a>
+  </div>
+</div>
+
+<div class="d-flex gap-3 mb-3 flex-wrap align-items-center small">
+  <span class="badge bg-success px-2 py-1">✔ Concluída</span>
+  <span class="badge bg-warning text-dark px-2 py-1">▶ Em Execução</span>
+  <span class="badge bg-secondary px-2 py-1">○ Por iniciar</span>
+  <span class="badge bg-danger px-2 py-1">⚠ Atrasada</span>
+  <span class="text-muted d-flex align-items-center gap-1">
+    <svg width="32" height="12"><line x1="0" y1="6" x2="24" y2="6" stroke="#f0ad4e" stroke-width="2" stroke-dasharray="4,2"/><polygon points="24,3 32,6 24,9" fill="#f0ad4e"/></svg>
+    Precedência
+  </span>
+  <span class="text-muted d-flex align-items-center gap-1">
+    <span style="display:inline-block;width:2px;height:14px;background:#ffd700;border-radius:1px;"></span>
+    Hoje
+  </span>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div id="gantt-scroll">
+      <!-- SVG lives INSIDE the scroll container so it scrolls with bars -->
+      <svg id="dep-svg" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arr" markerWidth="6" markerHeight="5" refX="6" refY="2.5" orient="auto">
+            <polygon points="0 0,6 2.5,0 5" fill="#f0ad4e"/>
+          </marker>
+        </defs>
+      </svg>
+
+      <table class="table table-sm mb-0" id="gt">
+        <thead class="table-dark" id="gt-head">
+          <tr>
+            <th class="sk c0 text-center">ID</th>
+            <th class="sk c1">Tarefa</th>
+            <th class="sk c2">Responsável</th>
+            <th class="sk c3">Estado</th>
+            <th class="sk c4 text-center">Dur.(d)</th>
+            <th class="sk c5">Início</th>
+            <th class="sk c6">Data fim</th>
+            <th class="sk c7">Prec.</th>
+            <th id="gt-tl" style="position:relative; padding: 0 0 0 4px;">Linha de Tempo →</th>
+          </tr>
+        </thead>
+        <tbody id="gt-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+const tarefas    = {{ tarefas_json|safe }};
+const projInicio = new Date("{{ data_inicio }}");
+const projFim    = new Date("{{ data_fim }}");
+const totalDias  = Math.max(Math.ceil((projFim - projInicio)/86400000) + 28, 60);
+const ROW_H      = 38;
+let   PX         = 18;
+
+function changeZoom(delta) {
+  PX = delta === 0 ? 18 : Math.max(8, Math.min(44, PX + delta));
+  rebuild();
+}
+
+function buildHeader() {
+  const th = document.getElementById('gt-tl');
+  th.style.minWidth = (totalDias * PX) + 'px';
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'position:relative;height:26px;';
+  let cur = new Date(projInicio); cur.setDate(1);
+  while (cur <= new Date(projFim.getTime() + 28*86400000)) {
+    const off = Math.ceil((cur - projInicio)/86400000);
+    if (off >= 0) {
+      const s = document.createElement('span');
+      s.style.cssText = `position:absolute;left:${off*PX}px;font-size:11px;white-space:nowrap;color:#ccc;`;
+      s.textContent = cur.toLocaleDateString('pt-PT',{month:'short',year:'2-digit'});
+      wrap.appendChild(s);
+    }
+    cur = new Date(cur.getFullYear(), cur.getMonth()+1, 1);
+  }
+  th.innerHTML = ''; th.appendChild(wrap);
+}
+
+function buildRows() {
+  const tbody = document.getElementById('gt-body');
+  tbody.innerHTML = '';
+  const hoje  = new Date(); hoje.setHours(0,0,0,0);
+  const barMap = {};
+
+  tarefas.forEach((t, idx) => {
+    const ini      = new Date(t.inicio);
+    const fim      = new Date(t.fim);
+    const atrasada = !t.concluida && fim < hoje;
+    const dStart   = Math.max(0, Math.ceil((ini - projInicio)/86400000));
+    const dLen     = Math.max(1, Math.ceil((fim - ini)/86400000));
+    const bLeft    = dStart * PX;
+    const bWidth   = Math.max(dLen * PX, 26);
+    const color    = atrasada ? '#dc3545' : t.concluida ? '#198754' : t.em_curso ? '#ffc107' : '#6c757d';
+
+    const tr = document.createElement('tr');
+    tr.style.height = ROW_H + 'px';
+
+    function mk(cls, html, style) {
+      const td = document.createElement('td');
+      td.className = 'sk ' + cls;
+      td.style.cssText = 'vertical-align:middle;' + (style||'');
+      td.innerHTML = html;
+      tr.appendChild(td);
+    }
+
+    mk('c0 text-center', `<span style="font-size:11px;font-weight:700;color:#adb5bd;">${t.ref}</span>`);
+    mk('c1', `<small style="font-size:12px;">${t.titulo}</small>${atrasada?' <span class="badge bg-danger" style="font-size:9px;">ATRASO</span>':''}`);
+    mk('c2', `<span style="font-size:11px;">${t.responsavel}</span>`);
+    mk('c3', `<span class="badge bg-${atrasada?'danger':t.estado_css}" style="font-size:10px;">${t.estado}</span>`);
+    mk('c4 text-center', `<span style="font-size:11px;font-weight:600;">${t.duracao}d</span>`);
+    mk('c5', `<span style="font-size:11px;">${ini.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>`);
+    mk('c6', `<span style="font-size:11px;${atrasada?'color:#dc3545;font-weight:700;':''}">${fim.toLocaleDateString('pt-PT',{day:'2-digit',month:'2-digit',year:'numeric'})}</span>`);
+    mk('c7', `<span style="font-size:11px;color:#f0ad4e;font-weight:600;">${t.pred_labels&&t.pred_labels.length?t.pred_labels.join(', '):'—'}</span>`);
+
+    // Timeline cell
+    const tdBar = document.createElement('td');
+    tdBar.style.cssText = `position:relative;height:${ROW_H}px;min-width:${totalDias*PX}px;padding:0;background:#1a1a2e;vertical-align:top;`;
+
+    const todayOff = Math.ceil((hoje - projInicio)/86400000);
+    if (todayOff >= 0 && todayOff <= totalDias) {
+      const tl = document.createElement('div');
+      tl.style.cssText = `position:absolute;left:${todayOff*PX}px;top:0;width:2px;height:100%;background:#ffd700;opacity:.7;z-index:1;`;
+      tdBar.appendChild(tl);
+    }
+
+    const bar = document.createElement('div');
+    bar.style.cssText = `position:absolute;left:${bLeft}px;top:8px;width:${bWidth}px;height:22px;
+      background:${color};border-radius:3px;z-index:2;display:flex;align-items:center;
+      padding:0 5px;overflow:hidden;font-size:10px;font-weight:700;
+      color:${color==='#ffc107'?'#000':'#fff'};box-shadow:0 1px 3px rgba(0,0,0,.5);`;
+    bar.textContent = t.ref + (t.concluida ? ' ✔' : '');
+    tdBar.appendChild(bar);
+    tr.appendChild(tdBar);
+    tbody.appendChild(tr);
+
+    barMap[t.id] = { bLeft, bRight: bLeft + bWidth, row: idx };
+  });
+
+  return barMap;
+}
+
+// Compute actual bar center Y for each task row (rows may be taller than ROW_H
+// because the task name cell can wrap to multiple lines)
+function barCenterYs() {
+  const rows = [...document.getElementById('gt-body').querySelectorAll('tr')];
+  let cumY = 0;
+  return tarefas.map((_, idx) => {
+    const h = rows[idx] ? rows[idx].offsetHeight : ROW_H;
+    // bar is always drawn at top:8, height:22 within the timeline cell
+    const cy = cumY + 8 + 11;   // 8px margin + half of 22px bar
+    cumY += h;
+    return { cy, cumY };
+  });
+}
+
+function positionSVG(ys) {
+  const svg    = document.getElementById('dep-svg');
+  const tlTh   = document.getElementById('gt-tl');
+  const gtHead = document.getElementById('gt-head');
+  const totalH = ys.length ? ys[ys.length - 1].cumY : tarefas.length * ROW_H;
+
+  svg.style.left   = tlTh.offsetLeft + 'px';
+  svg.style.top    = gtHead.offsetHeight + 'px';
+  svg.style.width  = (totalDias * PX + 20) + 'px';
+  svg.style.height = (totalH + 10) + 'px';
+}
+
+function drawDeps(barMap) {
+  const svg = document.getElementById('dep-svg');
+  svg.querySelectorAll('.dep').forEach(e => e.remove());
+
+  const ys = barCenterYs();
+  positionSVG(ys);
+
+  tarefas.forEach(t => {
+    if (!t.predecessoras || !t.predecessoras.length) return;
+    const sp = barMap[t.id];
+    if (!sp) return;
+
+    t.predecessoras.forEach((pid, pi) => {
+      const pp = barMap[pid];
+      if (!pp) return;
+
+      const x1 = pp.bRight;
+      const y1 = ys[pp.row].cy;
+      const x2 = sp.bLeft;
+      const y2 = ys[sp.row].cy;
+
+      const JOG = 10 + pi * 6;
+      const turnX = (x2 >= x1)
+        ? x1 + JOG                           // normal: small jog right then down
+        : Math.max(x1, sp.bRight) + JOG;     // overlap: detour past both bars
+
+      const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+      path.setAttribute('class','dep');
+      path.setAttribute('d', `M${x1},${y1} H${turnX} V${y2} H${x2}`);
+      path.setAttribute('fill','none');
+      path.setAttribute('stroke','#f0ad4e');
+      path.setAttribute('stroke-width','1.6');
+      path.setAttribute('stroke-dasharray','5,3');
+      path.setAttribute('marker-end','url(#arr)');
+      svg.appendChild(path);
+    });
+  });
+}
+
+function rebuild() {
+  buildHeader();
+  const bm = buildRows();
+  requestAnimationFrame(() => drawDeps(bm));
+  return bm;
+}
+
+let bmap = rebuild();
+window.addEventListener('resize', () => { bmap = rebuild(); });
+</script>
+{% endblock %}

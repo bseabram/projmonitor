@@ -1,0 +1,42 @@
+{% extends "core/base.html" %}
+{% block title %}Minhas Tarefas{% endblock %}
+{% block content %}
+<h2 class="mb-4">Minhas Tarefas</h2>
+{% if tarefas %}
+<table class="table table-hover bg-white rounded shadow-sm">
+  <thead class="table-light">
+    <tr><th>Tarefa</th><th>Projeto</th><th>Estado</th><th>Prazo</th><th>Est. (h)</th><th>Real (h)</th><th></th></tr>
+  </thead>
+  <tbody>
+    {% for t in tarefas %}
+    <tr {% if t.esta_atrasada %}class="table-danger"{% endif %}>
+      <td><a href="{% url 'detalhe_tarefa' t.id %}" class="text-decoration-none text-dark">{{ t.titulo }}</a></td>
+      <td>{{ t.projeto.nome }}</td>
+      <td><span class="badge {% if t.estado == 'CONCLUIDA' %}bg-success{% elif t.estado == 'EM_EXECUCAO' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">{{ t.get_estado_display }}</span></td>
+      <td>{{ t.prazo|default:"—" }}{% if t.esta_atrasada %} ⚠️{% endif %}</td>
+      <td>{{ t.esforco_estimado }}</td>
+      <td>{{ t.esforco_real }}</td>
+      <td><a href="{% url 'atualizar_tarefa_colaborador' t.id %}" class="btn btn-sm btn-outline-primary">Atualizar</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if page_obj.has_other_pages %}
+<nav>
+  <ul class="pagination">
+    {% if page_obj.has_previous %}
+    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}
+    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Seguinte</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<p class="text-muted">Não tens tarefas atribuídas.</p>
+{% endif %}
+{% endblock %}

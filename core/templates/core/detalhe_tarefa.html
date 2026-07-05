@@ -1,0 +1,99 @@
+{% extends "core/base.html" %}
+{% block title %}{{ tarefa.titulo }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-start mb-3">
+  <div>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'detalhe_projeto' tarefa.projeto.id %}">{{ tarefa.projeto.nome }}</a></li>
+        {% if tarefa.tarefa_pai %}
+        <li class="breadcrumb-item text-muted">{{ tarefa.tarefa_pai.titulo }}</li>
+        {% endif %}
+        <li class="breadcrumb-item active">{{ tarefa.titulo }}</li>
+      </ol>
+    </nav>
+    <h3>{{ tarefa.titulo }}</h3>
+    <span class="badge {% if tarefa.estado == 'CONCLUIDA' %}bg-success{% elif tarefa.estado == 'EM_EXECUCAO' %}bg-warning text-dark{% else %}bg-secondary{% endif %} fs-6">
+      {{ tarefa.get_estado_display }}
+    </span>
+    {% if tarefa.esta_atrasada %}<span class="badge bg-danger ms-1">Em atraso</span>{% endif %}
+  </div>
+  {% if is_gestor %}
+  <div class="btn-group">
+    <a href="{% url 'editar_tarefa' tarefa.id %}" class="btn btn-outline-secondary btn-sm">Editar</a>
+    <a href="{% url 'apagar_tarefa' tarefa.id %}" class="btn btn-outline-danger btn-sm">Apagar</a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+  <div class="col-md-8">
+    {% if tarefa.descricao %}
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-1">Descrição</h6>
+      <p class="mb-0">{{ tarefa.descricao }}</p>
+    </div>
+    {% endif %}
+
+    {% if tarefa.notas %}
+    <div class="card p-3 mb-3 border-warning">
+      <h6 class="text-muted mb-1">Notas</h6>
+      <p class="mb-0">{{ tarefa.notas }}</p>
+    </div>
+    {% endif %}
+
+    {% if tarefa.subtarefas.exists %}
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-2">Subtarefas</h6>
+      {% include "core/_tarefa_tree.html" with tarefas=tarefa.subtarefas.all is_gestor=is_gestor %}
+    </div>
+    {% endif %}
+
+    {% if tarefa.dependencias_como_sucessora.exists %}
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-2">Depende de</h6>
+      {% for dep in tarefa.dependencias_como_sucessora.all %}
+      <div class="d-flex justify-content-between align-items-center border-bottom py-1">
+        <a href="{% url 'detalhe_tarefa' dep.predecessora.id %}">{{ dep.predecessora.titulo }}</a>
+        <span class="badge {% if dep.predecessora.estado == 'CONCLUIDA' %}bg-success{% elif dep.predecessora.estado == 'EM_EXECUCAO' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+          {{ dep.predecessora.get_estado_display }}
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="col-md-4">
+    <div class="card p-3 mb-3">
+      <h6 class="text-muted mb-2">Detalhes</h6>
+      <dl class="mb-0">
+        <dt class="text-muted small">Responsável</dt>
+        <dd>{% if tarefa.responsavel %}{{ tarefa.responsavel.get_full_name|default:tarefa.responsavel.username }}{% else %}—{% endif %}</dd>
+        <dt class="text-muted small">Prazo</dt>
+        <dd {% if tarefa.esta_atrasada %}class="text-danger"{% endif %}>{{ tarefa.prazo|default:"—" }}</dd>
+        <dt class="text-muted small">Esforço estimado</dt>
+        <dd>{{ tarefa.esforco_estimado }} h</dd>
+        <dt class="text-muted small">Esforço real</dt>
+        <dd>{{ tarefa.esforco_real }} h</dd>
+        {% if tarefa.tarefa_pai %}
+        <dt class="text-muted small">Tarefa pai</dt>
+        <dd><a href="{% url 'detalhe_tarefa' tarefa.tarefa_pai.id %}">{{ tarefa.tarefa_pai.titulo }}</a></dd>
+        {% endif %}
+      </dl>
+    </div>
+
+    {% if is_gestor and tarefa.is_tarefa_final %}
+    <div class="card p-3">
+      <h6 class="text-muted mb-2">Ações</h6>
+      <div class="d-grid gap-2">
+        <a href="{% url 'editar_tarefa' tarefa.id %}" class="btn btn-outline-secondary btn-sm">Editar tarefa</a>
+        <a href="{% url 'decompor_tarefa' tarefa.id %}" class="btn btn-outline-primary btn-sm">Decompor em subtarefas</a>
+        <a href="{% url 'adicionar_dependencia' tarefa.id %}" class="btn btn-outline-secondary btn-sm">Adicionar dependência</a>
+        <a href="{% url 'apagar_tarefa' tarefa.id %}" class="btn btn-outline-danger btn-sm">Apagar tarefa</a>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
