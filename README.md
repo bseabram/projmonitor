@@ -38,8 +38,8 @@ Abrir <http://127.0.0.1:8000> no browser.
 
 | Perfil | Utilizador | Password |
 |---|---|---|
-| Gestor de Projeto | `<preencher>` | `<preencher>` |
-| Colaborador | `<preencher>` | `<preencher>` |
+| Gestor de Projeto | `gestor` | `gestor123` |
+| Colaborador | `joao` | `joao123` |
 
 ## Testes
 
